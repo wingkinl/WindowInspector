@@ -1,0 +1,9 @@
+x64
+Debug
+Release
+/.vs
+*.aps
+*.ipch
+*.opensdf
+*.sdf
+*.user
