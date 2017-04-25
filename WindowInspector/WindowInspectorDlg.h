@@ -81,6 +81,7 @@ public:
 		m_bIsUnicode = IsWindowUnicode(hWnd);
 		pWndInspect->GetWindowRect(m_rectWnd);
 		pWndInspect->GetClientRect(m_rectClient);
+		m_nCtrlID = pWndInspect->GetDlgCtrlID();
 		GetWindowThreadProcessId(hWnd, &m_dwPID);
 	}
 public:
@@ -93,6 +94,7 @@ public:
 	BOOL					m_bIsUnicode;
 	CRect					m_rectWnd;
 	CRect					m_rectClient;
+	int						m_nCtrlID;
 
 	DWORD					m_dwPID;
 };

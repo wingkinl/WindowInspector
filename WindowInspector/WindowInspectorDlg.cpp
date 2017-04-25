@@ -12,6 +12,80 @@
 #define new DEBUG_NEW
 #endif
 
+// taken from http://www.catch22.net/software/winspy
+#define INVERT_BORDER 3
+
+//
+//	Invert the specified window's border
+//
+void InvertWindow(HWND hwnd, BOOL fShowHidden)
+{
+	RECT rect;
+	RECT rect2;
+	RECT rectc;
+	HDC hdc;
+	int x1, y1;
+
+	int border = INVERT_BORDER;
+
+	if (hwnd == 0)
+		return;
+
+	//window rectangle (screen coords)
+	GetWindowRect(hwnd, &rect);
+
+	//client rectangle (screen coords)
+	GetClientRect(hwnd, &rectc);
+	ClientToScreen(hwnd, (POINT *)&rectc.left);
+	ClientToScreen(hwnd, (POINT *)&rectc.right);
+	//MapWindowPoints(hwnd, 0, (POINT *)&rectc, 2);
+
+	x1 = rect.left;
+	y1 = rect.top;
+	OffsetRect(&rect, -x1, -y1);
+	OffsetRect(&rectc, -x1, -y1);
+
+	if (rect.bottom - border * 2 < 0)
+		border = 1;
+
+	if (rect.right - border * 2 < 0)
+		border = 1;
+
+	if (fShowHidden == TRUE)
+		hwnd = 0;
+
+	hdc = GetWindowDC(hwnd);
+
+	if (hdc == 0)
+		return;
+
+	//top edge
+	//border = rectc.top-rect.top;
+	SetRect(&rect2, 0, 0, rect.right, border);
+	if (fShowHidden == TRUE) OffsetRect(&rect2, x1, y1);
+	InvertRect(hdc, &rect2);
+
+	//left edge
+	//border = rectc.left-rect.left;
+	SetRect(&rect2, 0, border, border, rect.bottom);
+	if (fShowHidden == TRUE) OffsetRect(&rect2, x1, y1);
+	InvertRect(hdc, &rect2);
+
+	//right edge
+	//border = rect.right-rectc.right;
+	SetRect(&rect2, border, rect.bottom - border, rect.right, rect.bottom);
+	if (fShowHidden == TRUE) OffsetRect(&rect2, x1, y1);
+	InvertRect(hdc, &rect2);
+
+	//bottom edge
+	//border = rect.bottom-rectc.bottom;
+	SetRect(&rect2, rect.right - border, border, rect.right, rect.bottom - border);
+	if (fShowHidden == TRUE) OffsetRect(&rect2, x1, y1);
+	InvertRect(hdc, &rect2);
+
+
+	ReleaseDC(hwnd, hdc);
+}
 
 // CWindowInspectorDlg dialog
 
@@ -21,6 +95,7 @@ CWindowInspectorDlg::CWindowInspectorDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_WINDOWINSPECTOR_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_hWndInspect = nullptr;
 	m_nUpdateWndInfoTimer = 0;
 }
 
@@ -587,6 +662,13 @@ static void _GetWindowInfoText(const CInspectWndInfo& info, CString& strText)
 	}
 	strText += _T("\r\n");
 
+	if (info.m_dwStyle & WS_CHILD)
+	{
+		strLine.Format(_T("Control ID: 0x%" PRIXPTR " (%d)"), info.m_nCtrlID, info.m_nCtrlID);
+		strText += _T("\r\n");
+		strText += strLine;
+	}
+
 	strLine.Format(_T("Style: 0x%" PRIXPTR "    ExStyle: 0x%" PRIXPTR), info.m_dwStyle, info.m_dwStyleEx);
 	strText += _T("\r\n");
 	strText += strLine;
@@ -607,7 +689,9 @@ void CWindowInspectorDlg::UpdateWindowInfo()
 	HWND hWndInspect = ::WindowFromPoint(pos);
 	if (!hWndInspect)
 		return;
+
 	m_hWndInspect = hWndInspect;
+
 	CWnd* pWndInspect = CWnd::FromHandle(m_hWndInspect);
 	
 	CString strLine, strText;
