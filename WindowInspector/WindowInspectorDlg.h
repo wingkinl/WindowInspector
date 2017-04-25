@@ -104,6 +104,9 @@ protected:
 	UINT_PTR	m_nUpdateWndInfoTimer;
 	HWND		m_hWndInspect;
 	CString		m_strOriginalTitle;
+	CEdit		m_editWndInfo;
+	CFont		m_fontEdit;
+	CSize		m_szDlg;
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
@@ -113,6 +116,6 @@ protected:
 public:
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnNcDestroy();
-	CEdit m_editWndInfo;
 	afx_msg void OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2);
+	afx_msg void OnSize(UINT nType, int cx, int cy);
 };

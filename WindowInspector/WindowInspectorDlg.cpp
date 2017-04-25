@@ -36,6 +36,7 @@ BEGIN_MESSAGE_MAP(CWindowInspectorDlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_WM_NCDESTROY()
 	ON_WM_HOTKEY()
+	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 
@@ -60,6 +61,15 @@ BOOL CWindowInspectorDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	GetWindowText(m_strOriginalTitle);
+
+	CRect rect;
+	GetClientRect(rect);
+	m_szDlg = rect.Size();
+
+	//m_fontEdit.CreateStockObject(ANSI_FIXED_FONT);
+	m_fontEdit.CreatePointFont(110, _T("Courier New"));
+	m_editWndInfo.SetFont(&m_fontEdit);
+
 	RegisterHotKey(GetSafeHwnd(), IDH_FREEZE, MOD_WIN|MOD_SHIFT, 'A');
 	m_nUpdateWndInfoTimer = SetTimer(TIMER_UPDATE_WIN_INFO_ID, TIMER_UPDATE_WIN_INFO_ELAPSE, nullptr);
 
@@ -156,7 +166,7 @@ static void _GetWindowStyleText(CString& strText, const CInspectWndInfo& info)
 #define HANDLE_WND_STYLE(_x, _mask)	\
 		if ((info.m_dwStyle & _mask) == _x) \
 		{\
-			strLine.Format(_T("%s\t\t(0x%08" PRIXPTR ")"), _T(#_x), _x);\
+			strLine.Format(_T("%-25s    (0x%08" PRIXPTR ")"), _T(#_x), _x);\
 			strText += strLine;\
 			strText += _T("\r\n");\
 		}
@@ -164,7 +174,7 @@ static void _GetWindowStyleText(CString& strText, const CInspectWndInfo& info)
 #define HANDLE_WND_STYLE_EX(_x, _mask)	\
 		if ((info.m_dwStyleEx & _mask) == _x) \
 		{\
-			strLine.Format(_T("%s\t\t(0x%08" PRIXPTR ")"), _T(#_x), _x);\
+			strLine.Format(_T("%-25s    (0x%08" PRIXPTR ")"), _T(#_x), _x);\
 			strText += strLine;\
 			strText += _T("\r\n");\
 		}
@@ -473,13 +483,10 @@ static void _GetWindowStyleText(CString& strText, const CInspectWndInfo& info)
 	}
 }
 
-static void _GetWindowInfoText(HWND hWnd, CString& strText)
+static void _GetWindowInfoText(const CInspectWndInfo& info, CString& strText)
 {
 	CString strLine;
 
-	CInspectWndInfo info;
-	info.Init(hWnd);
-	
 	strLine.Format(_T("HWND: 0x%" PRIXPTR), info.m_hWnd);
 	strText += _T("\r\n");
 	strText += strLine;
@@ -575,7 +582,26 @@ void CWindowInspectorDlg::UpdateWindowInfo()
 	strLine.Format(_T("Pos: %d, %d"), pos.x, pos.y);
 	strText = strLine;
 
-	_GetWindowInfoText(m_hWndInspect, strText);
+	CInspectWndInfo info;
+	info.Init(m_hWndInspect);
+	_GetWindowInfoText(info, strText);
+
+	HWND hParent = ::GetAncestor(m_hWndInspect, GA_PARENT);
+	HWND hOwner = ::GetWindow(m_hWndInspect, GW_OWNER);
+	if (hParent)
+	{
+		info.Init(hParent);
+		strText += _T("\r\n----------------------------------------------------------------\r\n");
+		strText += _T("Parent window:\r\n");
+		_GetWindowInfoText(info, strText);
+	}
+	if (hOwner && hOwner != hParent)
+	{
+		info.Init(hOwner);
+		strText += _T("\r\n----------------------------------------------------------------\r\n");
+		strText += _T("Owner window:\r\n");
+		_GetWindowInfoText(info, strText);
+	}
 
 	m_editWndInfo.SetWindowText(strText);
 }
@@ -623,4 +649,23 @@ void CWindowInspectorDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 		}
 	}
 	CDialogEx::OnHotKey(nHotKeyId, nKey1, nKey2);
+}
+
+
+void CWindowInspectorDlg::OnSize(UINT nType, int cx, int cy)
+{
+	CDialogEx::OnSize(nType, cx, cy);
+	if (!m_editWndInfo.m_hWnd)
+		return;
+	CSize szNew(cx, cy);
+	CSize szDiff = szNew - m_szDlg;
+
+	CRect rect;
+	m_editWndInfo.GetWindowRect(rect);
+	ScreenToClient(rect);
+	rect.right += szDiff.cx;
+	rect.bottom += szDiff.cy;
+	m_editWndInfo.SetWindowPos(nullptr, -1, -1, rect.Width(), rect.Height(), SWP_NOMOVE);
+
+	m_szDlg = szNew;
 }
