@@ -38,6 +38,12 @@ public:
 	inline BOOL IsTabCtrl() const { return IsClassType(WC_TABCONTROL); }
 	inline BOOL IsStatic() const { return IsClassType(WC_STATIC); }
 
+	inline BOOL IsMenu() const { return IsClassType(_T("#32768")); }
+	inline BOOL IsDesktop() const { return IsClassType(_T("#32769")); }
+	inline BOOL IsDialog() const { return IsClassType(_T("#32770")); }
+	inline BOOL IsTaskSwitchWnd() const { return IsClassType(_T("#32771")); }
+	inline BOOL IsIconTitles() const { return IsClassType(_T("#32772")); }
+
 	ATOM        atom;
 	UINT        style;
 	WNDPROC     lpfnWndProc;
@@ -72,6 +78,10 @@ public:
 		}
 		m_dwStyle = pWndInspect->GetStyle();
 		m_dwStyleEx = pWndInspect->GetExStyle();
+		m_bIsUnicode = IsWindowUnicode(hWnd);
+		pWndInspect->GetWindowRect(m_rectWnd);
+		pWndInspect->GetClientRect(m_rectClient);
+		GetWindowThreadProcessId(hWnd, &m_dwPID);
 	}
 public:
 	HWND					m_hWnd;
@@ -80,6 +90,11 @@ public:
 	CString					m_strTitle;
 	DWORD					m_dwStyle;
 	DWORD					m_dwStyleEx;
+	BOOL					m_bIsUnicode;
+	CRect					m_rectWnd;
+	CRect					m_rectClient;
+
+	DWORD					m_dwPID;
 };
 
 // CWindowInspectorDlg dialog
@@ -105,8 +120,12 @@ protected:
 	HWND		m_hWndInspect;
 	CString		m_strOriginalTitle;
 	CEdit		m_editWndInfo;
+	CEdit		m_editParentWndInfo;
 	CFont		m_fontEdit;
 	CSize		m_szDlg;
+
+	int			m_nEditGapToEdge;
+	int			m_nEditGapToEdit;
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();

@@ -28,6 +28,7 @@ void CWindowInspectorDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_EDIT_WINDOW_INFO, m_editWndInfo);
+	DDX_Control(pDX, IDC_EDIT_PARENT_WINDOW_INFO, m_editParentWndInfo);
 }
 
 BEGIN_MESSAGE_MAP(CWindowInspectorDlg, CDialogEx)
@@ -66,9 +67,19 @@ BOOL CWindowInspectorDlg::OnInitDialog()
 	GetClientRect(rect);
 	m_szDlg = rect.Size();
 
+	CRect rcEdit;
+	m_editWndInfo.GetWindowRect(rcEdit);
+	ScreenToClient(rcEdit);
+	CRect rcEditParent;
+	m_editParentWndInfo.GetWindowRect(rcEditParent);
+	ScreenToClient(rcEditParent);
+	m_nEditGapToEdge = rcEdit.left - rect.left;
+	m_nEditGapToEdit = rcEditParent.left - rcEdit.right;
+
 	//m_fontEdit.CreateStockObject(ANSI_FIXED_FONT);
 	m_fontEdit.CreatePointFont(110, _T("Courier New"));
 	m_editWndInfo.SetFont(&m_fontEdit);
+	m_editParentWndInfo.SetFont(&m_fontEdit);
 
 	RegisterHotKey(GetSafeHwnd(), IDH_FREEZE, MOD_WIN|MOD_SHIFT, 'A');
 	m_nUpdateWndInfoTimer = SetTimer(TIMER_UPDATE_WIN_INFO_ID, TIMER_UPDATE_WIN_INFO_ELAPSE, nullptr);
@@ -166,7 +177,7 @@ static void _GetWindowStyleText(CString& strText, const CInspectWndInfo& info)
 #define HANDLE_WND_STYLE(_x, _mask)	\
 		if ((info.m_dwStyle & _mask) == _x) \
 		{\
-			strLine.Format(_T("%-25s    (0x%08" PRIXPTR ")"), _T(#_x), _x);\
+			strLine.Format(_T("%-30s    (0x%08" PRIXPTR ")"), _T(#_x), _x);\
 			strText += strLine;\
 			strText += _T("\r\n");\
 		}
@@ -174,7 +185,7 @@ static void _GetWindowStyleText(CString& strText, const CInspectWndInfo& info)
 #define HANDLE_WND_STYLE_EX(_x, _mask)	\
 		if ((info.m_dwStyleEx & _mask) == _x) \
 		{\
-			strLine.Format(_T("%-25s    (0x%08" PRIXPTR ")"), _T(#_x), _x);\
+			strLine.Format(_T("%-30s    (0x%08" PRIXPTR ")"), _T(#_x), _x);\
 			strText += strLine;\
 			strText += _T("\r\n");\
 		}
@@ -488,7 +499,6 @@ static void _GetWindowInfoText(const CInspectWndInfo& info, CString& strText)
 	CString strLine;
 
 	strLine.Format(_T("HWND: 0x%" PRIXPTR), info.m_hWnd);
-	strText += _T("\r\n");
 	strText += strLine;
 
 	strText += _T("\r\nTitle: ");
@@ -498,24 +508,46 @@ static void _GetWindowInfoText(const CInspectWndInfo& info, CString& strText)
 	
 	strText += _T("\r\nClass: ");
 	strText += info.m_clsInfo.szClassName;
+	if (info.m_clsInfo.IsMenu())
+		strText += _T(" (Menu)");
+	else if (info.m_clsInfo.IsDesktop())
+		strText += _T(" (Desktop)");
+	else if (info.m_clsInfo.IsDialog())
+		strText += _T(" (Dialog)");
+	else if (info.m_clsInfo.IsTaskSwitchWnd())
+		strText += _T(" (Task Switch Window)");
+	else if (info.m_clsInfo.IsIconTitles())
+		strText += _T(" (Icon Titles)");
 
-	strLine.Format(_T("HMODULE: 0x%" PRIXPTR "\tAtom: 0x%" PRIXPTR), wndClass.hModule, wndClass.atom);
+	strLine.Format(_T("Screen: (%d, %d) - (%d, %d)  -  %d x %d"), 
+		info.m_rectWnd.left, info.m_rectWnd.top, info.m_rectWnd.right, info.m_rectWnd.bottom,
+		info.m_rectWnd.Width(), info.m_rectWnd.Height());
 	strText += _T("\r\n");
 	strText += strLine;
 
-	strLine.Format(_T("WndProc: 0x%" PRIXPTR "\tMenu: 0x%" PRIXPTR), wndClass.lpfnWndProc, wndClass.lpszMenuName);
+	strLine.Format(_T("Client: (%d, %d) - (%d, %d)  -  %d x %d"),
+		info.m_rectClient.left, info.m_rectClient.top, info.m_rectClient.right, info.m_rectClient.bottom,
+		info.m_rectClient.Width(), info.m_rectClient.Height());
 	strText += _T("\r\n");
 	strText += strLine;
 
-	strLine.Format(_T("HICON: 0x%" PRIXPTR "\tHICON(sm): 0x%" PRIXPTR), wndClass.hIcon, wndClass.hIconSm);
+	strLine.Format(_T("HMODULE: 0x%-16" PRIXPTR "  Atom: 0x%" PRIXPTR), wndClass.hModule, wndClass.atom);
+	strText += _T("\r\n");
+	strText += strLine;
+
+	strLine.Format(_T("WndProc: 0x%-16" PRIXPTR "  Menu: 0x%" PRIXPTR), wndClass.lpfnWndProc, wndClass.lpszMenuName);
+	strText += _T("\r\n");
+	strText += strLine;
+
+	strLine.Format(_T("HICON:   0x%-16" PRIXPTR "  HICON(sm): 0x%" PRIXPTR), wndClass.hIcon, wndClass.hIconSm);
 	strText += _T("\r\n");
 	strText += strLine;
 
 	CString strBrush;
 	if (_GetBrushText((ULONG_PTR)wndClass.hbrBackground, strBrush))
-		strLine.Format(_T("HCURSOR: 0x%" PRIXPTR "\tBrush: %s"), wndClass.hCursor, (LPCTSTR)strBrush);
+		strLine.Format(_T("HCURSOR: 0x%-16" PRIXPTR "  Brush: %s"), wndClass.hCursor, (LPCTSTR)strBrush);
 	else
-		strLine.Format(_T("HCURSOR: 0x%" PRIXPTR "\tBrush: 0x%" PRIXPTR), wndClass.hCursor, wndClass.hbrBackground);
+		strLine.Format(_T("HCURSOR: 0x%-16" PRIXPTR "  Brush: 0x%" PRIXPTR), wndClass.hCursor, wndClass.hbrBackground);
 	strText += _T("\r\n");
 	strText += strLine;
 
@@ -580,30 +612,34 @@ void CWindowInspectorDlg::UpdateWindowInfo()
 	
 	CString strLine, strText;
 	strLine.Format(_T("Pos: %d, %d"), pos.x, pos.y);
-	strText = strLine;
+	SetDlgItemText(IDC_STATIC_CURSORPOS, strLine);
 
 	CInspectWndInfo info;
 	info.Init(m_hWndInspect);
 	_GetWindowInfoText(info, strText);
 
+	m_editWndInfo.SetWindowText(strText);
+
 	HWND hParent = ::GetAncestor(m_hWndInspect, GA_PARENT);
 	HWND hOwner = ::GetWindow(m_hWndInspect, GW_OWNER);
+	CString strParentText;
 	if (hParent)
 	{
 		info.Init(hParent);
-		strText += _T("\r\n----------------------------------------------------------------\r\n");
-		strText += _T("Parent window:\r\n");
-		_GetWindowInfoText(info, strText);
+		strParentText += _T("Parent window ");
+		_GetWindowInfoText(info, strParentText);
 	}
 	if (hOwner && hOwner != hParent)
 	{
 		info.Init(hOwner);
-		strText += _T("\r\n----------------------------------------------------------------\r\n");
-		strText += _T("Owner window:\r\n");
-		_GetWindowInfoText(info, strText);
+		strParentText += _T("\r\n----------------------------------------------------------------\r\n");
+		strParentText += _T("Owner window:\r\n");
+		_GetWindowInfoText(info, strParentText);
 	}
-
-	m_editWndInfo.SetWindowText(strText);
+	if (!strParentText.IsEmpty())
+	{
+		m_editParentWndInfo.SetWindowText(strParentText);
+	}
 }
 
 
@@ -655,17 +691,26 @@ void CWindowInspectorDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 void CWindowInspectorDlg::OnSize(UINT nType, int cx, int cy)
 {
 	CDialogEx::OnSize(nType, cx, cy);
-	if (!m_editWndInfo.m_hWnd)
+	if (!m_editWndInfo.m_hWnd || !m_editParentWndInfo.m_hWnd)
 		return;
 	CSize szNew(cx, cy);
 	CSize szDiff = szNew - m_szDlg;
 
+	int nWidth = (cx - m_nEditGapToEdge * 2 - m_nEditGapToEdit) / 2;
 	CRect rect;
 	m_editWndInfo.GetWindowRect(rect);
 	ScreenToClient(rect);
-	rect.right += szDiff.cx;
+	rect.right = rect.left + nWidth;
 	rect.bottom += szDiff.cy;
 	m_editWndInfo.SetWindowPos(nullptr, -1, -1, rect.Width(), rect.Height(), SWP_NOMOVE);
+
+	int nTemp = rect.right;
+	m_editParentWndInfo.GetWindowRect(rect);
+	ScreenToClient(rect);
+	rect.left = nTemp + m_nEditGapToEdit;
+	rect.right = rect.left + nWidth;
+	rect.bottom += szDiff.cy;
+	m_editParentWndInfo.SetWindowPos(nullptr, rect.left, rect.top, rect.Width(), rect.Height(), 0);
 
 	m_szDlg = szNew;
 }
