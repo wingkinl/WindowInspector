@@ -627,6 +627,15 @@ static void _GetWindowInfoText(const CInspectWndInfo& info, CString& strText)
 	strText += _T("\r\n");
 	strText += strLine;
 
+	if (info.m_dwStyle & WS_CHILD)
+	{
+		strLine.Format(_T("Client (To Parent): (%d, %d) - (%d, %d)  -  %d x %d"),
+			info.m_rectClientToParent.left, info.m_rectClientToParent.top, info.m_rectClientToParent.right, info.m_rectClientToParent.bottom,
+			info.m_rectClientToParent.Width(), info.m_rectClientToParent.Height());
+		strText += _T("\r\n");
+		strText += strLine;
+	}
+
 	strLine.Format(_T("HMODULE: 0x%-16" PRIXPTR "  Atom: 0x%" PRIXPTR), wndClass.hModule, wndClass.atom);
 	strText += _T("\r\n");
 	strText += strLine;
@@ -733,6 +742,15 @@ void CWindowInspectorDlg::UpdateWindowInfo()
 		info.Init(hParent);
 		strParentText += _T("Parent window ");
 		_GetWindowInfoText(info, strParentText);
+
+		HWND hNextParent = ::GetAncestor(hParent, GA_PARENT);
+		while (hNextParent)
+		{
+			info.Init(hNextParent);
+			strParentText += _T("Parent window ");
+			_GetWindowInfoText(info, strParentText);
+			hNextParent = ::GetAncestor(hNextParent, GA_PARENT);
+		}
 	}
 	if (hOwner && hOwner != hParent)
 	{

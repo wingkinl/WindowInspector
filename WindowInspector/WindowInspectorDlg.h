@@ -81,6 +81,15 @@ public:
 		m_bIsUnicode = IsWindowUnicode(hWnd);
 		pWndInspect->GetWindowRect(m_rectWnd);
 		pWndInspect->GetClientRect(m_rectClient);
+		if (m_dwStyle & WS_CHILD)
+		{
+			auto pParentWnd = pWndInspect->GetParent();
+			if (pParentWnd->GetSafeHwnd())
+			{
+				m_rectClientToParent = m_rectWnd;
+				pParentWnd->ScreenToClient(m_rectClientToParent);
+			}
+		}
 		m_nCtrlID = pWndInspect->GetDlgCtrlID();
 		GetWindowThreadProcessId(hWnd, &m_dwPID);
 	}
@@ -94,6 +103,7 @@ public:
 	BOOL					m_bIsUnicode;
 	CRect					m_rectWnd;
 	CRect					m_rectClient;
+	CRect					m_rectClientToParent;
 	int						m_nCtrlID;
 
 	DWORD					m_dwPID;
